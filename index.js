@@ -260,7 +260,22 @@ import util from 'util';
         return;
     }
     const demoBalanceTransfer = async (fromAccount, toAccount, amount) => {
-
+        if (!near_account) {
+            console.log("You need to run the `Login` demo first to login to your Near Testnet account");
+            await nearLoginTestnet();
+            await demoBalanceTransfer();
+            return;
+        }
+        else {
+            const subAccount = `sub1.${near_account}`;
+            const initialWalletBalance = 50
+            const transferAmount = 20
+            console.log(`Steps executed will be: 
+                            1. I will first create a sub-account, ${subAccount} to transfer funds frp,
+                            2. I will then transfer funds from ${subAccount} tp ${near_account}
+                            3. Finally, I will delete the ${subAccount} sub-account and transfer the remaining balance back to ${near_account}
+                        `);
+        }
     }
     await welcome();
     await demoNear();
