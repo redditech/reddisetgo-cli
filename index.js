@@ -12,6 +12,8 @@ import util from 'util';
 (async () => {
     let blockchain;
     let demo;
+    let near_env = process.env.NEAR_ENV;
+    let near_account;
     const sleep = (ms = 2000) => new Promise((r) => setTimeout(r, ms));
     async function welcome() {
         figlet(`ReddiSetGo CLI V 0.1`, (err, data) => {
@@ -62,6 +64,7 @@ import util from 'util';
         console.log(`I will be executing the following command: ${chalk.blue('near --version')}`);
         // Reference https://stackabuse.com/executing-shell-commands-with-node-js/
         // Reference https://zaiste.net/posts/nodejs-child-process-spawn-exec-fork-async-await/
+        // Reference https://stackoverflow.com/questions/34622560/node-child-process-exec-command-failed-with-error-code-1
         const _exec = util.promisify(exec);
         const rainbowTitle = chalkAnimation.radar(
             "Checking for the Near CLI..."
@@ -83,6 +86,9 @@ import util from 'util';
             return false;
         }
 
+        figlet(`Near CLI Is Installed! Yay!`, (err, data) => {
+            console.log(gradient.instagram.multiline(data) + '\n');
+        });
         console.log("The Near CLI is already installed");
         return true;
     }
@@ -109,6 +115,9 @@ import util from 'util';
                 }
             }
             console.log(`stdout: ${stdout}`);
+            figlet(`Near CLI Installation Complete`, (err, data) => {
+                console.log(gradient.instagram.multiline(data) + '\n');
+            });
             console.log("The Near CLI has been installed, please try re-running the demo");
             rainbowTitle.stop();
         }
@@ -128,10 +137,10 @@ import util from 'util';
         const answers = await inquirer.prompt({
             name: 'near_demo',
             type: 'list',
-            message: 'Which demo? Default is `Quit`',
-            choices: ['Login', 'Deploy Contract', 'Quit'],
+            message: 'Which demo? Default is `Login`',
+            choices: ['Login', 'List Access Keys', 'Create Sub-Account', 'Quit'],
             default() {
-                return 'Quit';
+                return 'Login';
             },
         });
         demo = answers.near_demo;
@@ -143,7 +152,7 @@ import util from 'util';
                 );
                 await sleep();
                 rainbowTitle.stop();
-                demoNearLogin();
+                await doNearLogin();
                 break;
             default:
                 console.log(chalk.blue('Work in progress'));
@@ -151,11 +160,51 @@ import util from 'util';
         }
 
     }
-    async function demoNearLogin() {
+    async function doNearLogin() {
+        let output;
         console.log(`This is following docs at 
                     ${chalk.green('https://docs.near.org/docs/tools/near-cli#near-login'
         )}`);
+        console.log(`Current near environment set to ${near_env}`);
+        if (near_env !== "testnet") {
+            console.log(`First I will set the target to Near's 'testnet' with ${chalk.blue('NEAR_ENV=testnet')}`);
+            process.env['NEAR_ENV'] = 'testnet';
+            near_env = process.env.NEAR_ENV;
+            console.log(`Current near environment is now set to ${near_env}`);
+        }
+        const _exec = util.promisify(exec);
+        try {
+            console.log(`I will be executing the following command: ${chalk.blue('near login')}`);
+            console.log('This should open a browser window for you to authenticate your credentials');
+            let { stdout, stderr, error } = await _exec("near login");
+            if (error) {
+                console.log(`error: ${error.message}`);
+                return false;
+            }
+            if (stderr) {
+                console.log(`stdout: ${stdout}`);
+                console.log(`stderr: ${stderr}`);
+                return false;
+            }
+            console.log(`stdout: ${stdout}`);
+            console.log("-------------------");
+
+            // Reference https://regex101.com/
+            // Reference https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions/Cheatsheet
+            near_account = stdout.match(/[A-Za-z0-9_-]*.testnet\s/gm);
+        }
+        catch (error) {
+            console.log(`error: ${error.message}`);
+            return false;
+        }
+        figlet(`Login to Near Testnet Complete`, (err, data) => {
+            console.log(gradient.instagram.multiline(data) + '\n');
+        });
+        console.log(`Identified your account as ${near_account}`);
+        return true;
+
     }
+
     await welcome();
     await whichBlockchain();
 })();
