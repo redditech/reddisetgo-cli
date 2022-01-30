@@ -15,18 +15,18 @@ import util from 'util';
     let near_env = process.env.NEAR_ENV;
     let near_account;
     const sleep = (ms = 2000) => new Promise((r) => setTimeout(r, ms));
-    async function welcome() {
+    const welcome = async () => {
         figlet(`ReddiSetGo CLI V 0.1`, (err, data) => {
             console.log(gradient.instagram.multiline(data) + '\n');
         });
-        await sleep();
+        await sleep(500);
     }
-    async function whichBlockchain() {
+    const whichBlockchain = async () => {
         const answers = await inquirer.prompt({
             name: 'blockchain',
             type: 'list',
             message: 'Which blockchain do you want to demo? (default is `Near`)',
-            choices: ['Ethereum', 'Solana', 'Near', 'Quit'],
+            choices: ['Near', 'Solana', 'Ethereum', 'Quit'],
             default() {
                 return 'Near';
             },
@@ -34,14 +34,14 @@ import util from 'util';
         blockchain = answers.blockchain;
         demoBlockchain(blockchain);
     }
-    async function demoBlockchain(selectedBlockchain) {
+    const demoBlockchain = async (selectedBlockchain) => {
         const spinner = createSpinner('Prepping demo...').start();
         if (selectedBlockchain === 'Quit') {
             spinner.error({ text: `Quitting...` });
             process.exit(1);
         }
         else {
-            await sleep();
+            await sleep(500);
             spinner.success({ text: `Nice. I'll prep the demos for ${selectedBlockchain}` });
             switch (selectedBlockchain) {
                 case 'Near':
@@ -59,7 +59,7 @@ import util from 'util';
         console.log(chalk.bgGreen(`Returning to menu`));
         await whichBlockchain();
     }
-    async function confirmNearCli() {
+    const confirmNearCli = async () => {
 
         console.log(`I will be executing the following command: ${chalk.blue('near --version')}`);
         // Reference https://stackabuse.com/executing-shell-commands-with-node-js/
@@ -93,7 +93,7 @@ import util from 'util';
         return true;
     }
 
-    async function installNearCli() {
+    const installNearCli = async () => {
         console.log("The Near CLI is not installed. I will install it now");
         console.log(`I will be executing the following command: ${chalk.blue('npm i -g near-cli')}`);
         const _exec = util.promisify(exec);
@@ -132,13 +132,13 @@ import util from 'util';
         const rainbowTitle = chalkAnimation.rainbow(
             "Starting Demos for Near..."
         );
-        await sleep();
+        await sleep(500);
         rainbowTitle.stop();
         const answers = await inquirer.prompt({
             name: 'near_demo',
             type: 'list',
             message: 'Which demo? Default is `Login`',
-            choices: ['Login', 'List Access Keys', 'Create Sub-Account', 'Quit'],
+            choices: ['Login', 'List Access Keys', 'Create Sub-Account and Transfer Tokens', 'Quit'],
             default() {
                 return 'Login';
             },
@@ -150,27 +150,42 @@ import util from 'util';
                 const rainbowTitle = chalkAnimation.rainbow(
                     "Starting Login Demo for Near..."
                 );
-                await sleep();
+                await sleep(500);
                 rainbowTitle.stop();
-                await doNearLogin();
+                await nearLoginTestnet();
                 break;
+            case 'List Access Keys':
+                await listNearKeys();
+                break;
+            case 'Quit':
+                console.log("Quitting...");
+                process.exit(0);
             default:
                 console.log(chalk.blue('Work in progress'));
+                await demoNear();
                 break;
         }
 
     }
-    async function doNearLogin() {
-        let output;
+    const setNearTestnet = async () => {
+        console.log(`Current near environment set to ${near_env}`);
+        if (near_env === "testnet") return true;
+
+        console.log(`First I will set the target to Near's 'testnet' with ${chalk.blue('NEAR_ENV=testnet')}`);
+        process.env['NEAR_ENV'] = 'testnet';
+        near_env = process.env.NEAR_ENV;
+        console.log(`Current near environment is now set to ${near_env}`);
+        if (near_env !== "testnet") return false;
+        return true;
+    }
+
+    const nearLoginTestnet = async () => {
         console.log(`This is following docs at 
                     ${chalk.green('https://docs.near.org/docs/tools/near-cli#near-login'
         )}`);
-        console.log(`Current near environment set to ${near_env}`);
-        if (near_env !== "testnet") {
-            console.log(`First I will set the target to Near's 'testnet' with ${chalk.blue('NEAR_ENV=testnet')}`);
-            process.env['NEAR_ENV'] = 'testnet';
-            near_env = process.env.NEAR_ENV;
-            console.log(`Current near environment is now set to ${near_env}`);
+        if (!await setNearTestnet()) {
+            console.log("Couldn't set the Near environment to testnet");
+            return false;
         }
         const _exec = util.promisify(exec);
         try {
@@ -191,7 +206,7 @@ import util from 'util';
 
             // Reference https://regex101.com/
             // Reference https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions/Cheatsheet
-            near_account = stdout.match(/[A-Za-z0-9_-]*.testnet\s/gm);
+            near_account = stdout.match(/[A-Za-z0-9_-]*.testnet\s/gm).toString().trim();
         }
         catch (error) {
             console.log(`error: ${error.message}`);
@@ -200,12 +215,55 @@ import util from 'util';
         figlet(`Login to Near Testnet Complete`, (err, data) => {
             console.log(gradient.instagram.multiline(data) + '\n');
         });
-        console.log(`Identified your account as ${near_account}`);
+
+        console.log(`Your logged in Near account is set to ${near_account}`);
         return true;
 
     }
+    const listNearKeys = async () => {
+        if (!near_account) {
+            console.log("You need to run the `Login` demo first to login to your Near Testnet account");
+            await nearLoginTestnet();
+            await listNearKeys();
+            return;
+        }
+        else {
+            console.log(`This is following docs at 
+                    ${chalk.green('https://docs.near.org/docs/tools/near-cli#near-keys'
+            )}`);
+            console.log(`I will run '${chalk.blue("near keys " + near_account)}' to generate the list of keys for your account`);
+            const _exec = util.promisify(exec);
+            try {
+                console.log(`I will be executing the following command: ${chalk.blue('near keys ' + near_account)}`);
+                let { stdout, stderr, error } = await _exec(`near keys ${near_account}`);
+                if (error) {
+                    console.log(`error: ${error.message}`);
+                    return false;
+                }
+                if (stderr) {
+                    console.log(`stdout: ${stdout}`);
+                    console.log(`stderr: ${stderr}`);
+                    return false;
+                }
+                console.log(`${stdout}`);
+                console.log("-------------------");
+            }
+            catch (error) {
+                console.log(`error: ${error.message}`);
+                return false;
+            }
+            figlet(`Listing Near Account Keys Complete`, (err, data) => {
+                console.log(gradient.instagram.multiline(data) + '\n');
+            });
+            return true;
+        }
+        return;
+    }
+    const demoBalanceTransfer = async (fromAccount, toAccount, amount) => {
 
+    }
     await welcome();
+    await demoNear();
     await whichBlockchain();
 })();
 
